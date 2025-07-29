@@ -1,5 +1,3 @@
-package com.ai.fusion.character.merge.video.generator.core.billing
-
 import android.app.Activity
 import android.content.Context
 import android.util.Log
@@ -15,6 +13,7 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.Purchase.PurchaseState
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.queryProductDetails
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -78,6 +77,10 @@ class GoogleBilling@Inject constructor(
                     billingPurchaseResult?.invoke(BillingPurchaseResult.NoPurchasesFound())
                 }
             }
+            else ->{
+                Log.d(BILLING_LOG, "onPurchasesUpdated: Error: code: ${billingResult.responseCode}, message: ${billingResult.debugMessage}")
+                billingPurchaseResult?.invoke(BillingPurchaseResult.PurchaseError(billingResult.responseCode, billingResult.debugMessage))
+            }
         }
     }
 
@@ -89,7 +92,10 @@ class GoogleBilling@Inject constructor(
         billingClient.acknowledgePurchase(acknowledgePurchaseParams){billingResult->
             when{
                 billingResult.responseCode == BillingResponseCode.OK -> onAcknowledged()
-                else-> Log.d(BILLING_LOG, "onPurchaseAcknowledge: Error acknowledging: code: ${billingResult.responseCode}, message: ${billingResult.debugMessage}")
+                else-> {
+                    Log.d(BILLING_LOG, "onPurchaseAcknowledge: Error acknowledging: code: ${billingResult.responseCode}, message: ${billingResult.debugMessage}")
+                    billingPurchaseResult?.invoke(BillingPurchaseResult.PurchaseError(billingResult.responseCode, billingResult.debugMessage))
+                }
             }
         }
 
@@ -149,6 +155,35 @@ class GoogleBilling@Inject constructor(
             }
         }
 
+    }
+
+    fun queryPurchases(productType: ProductType){
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(productType.type)
+            .build()
+
+        billingClient.queryPurchasesAsync(params){result, purchases->
+            when{
+                result.responseCode == BillingResponseCode.OK->{
+                    purchases.forEach {purchase->
+                        if (purchase.isAcknowledged){
+                            Log.d(BILLING_LOG, "onPurchasesUpdated: Purchase Already Acknowledged")
+                            billingPurchaseResult?.invoke(BillingPurchaseResult.PurchaseAcknowledged(purchase))
+                        }else{
+                            acknowledgePurchase(purchase){
+                                Log.d(BILLING_LOG, "onPurchasesUpdated: Purchase Acknowledged")
+                                //handle further actions
+                                billingPurchaseResult?.invoke(BillingPurchaseResult.PurchaseAcknowledged(purchase))
+                            }
+                        }
+                    }
+                }
+                else->{
+                    Log.d(BILLING_LOG, "onPurchasesUpdated: Error querying purchases: code: ${result.responseCode}, message: ${result.debugMessage}")
+                    billingPurchaseResult?.invoke(BillingPurchaseResult.PurchaseError(result.responseCode, result.debugMessage))
+                }
+            }
+        }
     }
 
     fun launchBillingFlow(activity: Activity, productDetails: ProductDetails){
