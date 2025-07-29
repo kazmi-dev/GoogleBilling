@@ -1,5 +1,3 @@
-package com.ai.fusion.character.merge.video.generator.core.billing
-
 import com.android.billingclient.api.Purchase
 
 sealed class BillingPurchaseResult {
