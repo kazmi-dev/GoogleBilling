@@ -1,4 +1,4 @@
-# 🧾 GoogleBilling — Google Play Billing + Hilt (Kotlin)
+# 🧾 GoogleBilling — With Hilt + Without Hilt
 
 A reusable, clean, and modern implementation of **Google Play Billing** using Kotlin, **Dagger Hilt**, and **coroutines**.  
 Supports **one-time purchases** (`INAPP`) and **subscriptions** (`SUBS`) with proper handling for purchase states, errors, and acknowledgment.
@@ -20,3 +20,4 @@ Supports **one-time purchases** (`INAPP`) and **subscriptions** (`SUBS`) with pr
 
 - ✅ Billing Library
 - ✅ Dependency Injection (Dagger/Hilt)
+- ✅ NO Dependency Injection (Dagger/Hilt) with Util as an Object
