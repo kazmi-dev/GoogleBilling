@@ -1,7 +1,5 @@
 import android.app.Activity
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
@@ -20,8 +18,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,281 +31,193 @@ class GoogleBillingUtil @Inject constructor(
 ) : PurchasesUpdatedListener {
 
     companion object {
-
-        //For logging purpose
-        private const val BILLING_LOG = "billing_log_123428374532"
-
-        //Always describe your products here
-        private val products = listOf(
-            Product(productId = "android.test.purchased", productType = ProductType.IN_APP.type),
-        )
+        private const val TAG = "GoogleBilling"
     }
 
-    //Store Product details for later use
-    private val productDetailsList = mutableListOf<ProductDetails>()
-
-    private var reconnectionCount = 0
-
-    private val billingClient: BillingClient = BillingClient.newBuilder(context)
-        .setListener(this)
-        .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-        .enableAutoServiceReconnection()
-        .build()
+    private val productsConfig = listOf(
+        BillingProduct("android.test.purchased", BillingClient.ProductType.INAPP)
+    )
 
     private val billingScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private var onGetProducts: ((List<ProductDetails>) -> Unit)? = null
-    private var onProductPurchased: ((purchaseId: String) -> Unit)? = null
+    private val billingClient: BillingClient =
+        BillingClient.newBuilder(context)
+        .setListener(this)
+        .enablePendingPurchases(
+            PendingPurchasesParams.newBuilder()
+                .enableOneTimeProducts()
+                .build()
+        )
+        .enableAutoServiceReconnection()
+        .build()
 
-    fun setOnGetProductsListener(onGetProducts: (List<ProductDetails>) -> Unit) {
-        this.onGetProducts = onGetProducts
-    }
-    fun setOnProductPurchasedListener(onProductPurchased: (purchaseId: String) -> Unit) {
-        this.onProductPurchased = onProductPurchased
-    }
+    /* -------------------- STATE -------------------- */
+
+    private val _products =
+        MutableStateFlow<List<ProductDetails>>(emptyList())
+    val products: StateFlow<List<ProductDetails>> = _products
+
+    private val _billingEvents =
+        MutableSharedFlow<BillingEvent>(extraBufferCapacity = 1)
+    val billingEvents = _billingEvents
 
     init {
         startConnection()
     }
 
-    fun startConnection() {
+    /* -------------------- CONNECTION -------------------- */
 
-        if(billingClient.isReady) {
-            billingScope.launch(Dispatchers.Main) {
-                //fetch all purchases
-                queryAvailableProducts()
-            }
-            //fetch active Purchases
-            queryActivePurchases()
-            Log.d("2839709234242342342", "onBillingSetupFinished: $onGetProducts")
+    private fun startConnection() {
+        if (billingClient.isReady) {
+            fetchProducts()
+            restorePurchases()
             return
         }
 
-        billingClient.startConnection(
-            object : BillingClientStateListener {
-
-                //handle disconnection logic
-                override fun onBillingServiceDisconnected() {
-                    Log.d(BILLING_LOG, "onBillingServiceDisconnected: Disconnected.")
-                    //apply reconnection logic
-                    reconnectToBillingService()
+        billingClient.startConnection(object : BillingClientStateListener {
+            override fun onBillingSetupFinished(result: BillingResult) {
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    fetchProducts()
+                    restorePurchases()
+                } else {
+                    _billingEvents.tryEmit(
+                        BillingEvent.Error(result.debugMessage)
+                    )
                 }
-
-                //connection success
-                override fun onBillingSetupFinished(result: BillingResult) {
-                    if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                        Log.d(BILLING_LOG, "onBillingSetupFinished: Success.")
-
-                        billingScope.launch(Dispatchers.Main) {
-                            //fetch all purchases
-                            queryAvailableProducts()
-                        }
-                        //fetch active Purchases
-                        queryActivePurchases()
-                        Log.d("2839709234242342342", "onBillingSetupFinished: $onGetProducts")
-
-                    } else {
-                        //something went wrong
-                        Log.d(BILLING_LOG, "onBillingSetupFinished: Failed -> ${result.debugMessage}")
-                    }
-                }
-
             }
-        )
+
+            override fun onBillingServiceDisconnected() {
+                Log.d(TAG, "Billing disconnected")
+            }
+        })
     }
 
-    private fun reconnectToBillingService() {
+    /* -------------------- PRODUCTS -------------------- */
 
-        if (reconnectionCount >= 3){
-            return
-        }
-
-        reconnectionCount++
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            startConnection()
-        }, 3000)
-    }
-
-    private suspend fun queryAvailableProducts() {
-
-        val queryProducts = mutableListOf<QueryProductDetailsParams.Product>()
-        products.forEach { product ->
-            queryProducts.add(
+    private fun fetchProducts() {
+        billingScope.launch {
+            val queryList = productsConfig.map {
                 QueryProductDetailsParams.Product.newBuilder()
-                    .setProductId(product.productId)
-                    .setProductType(product.productType)
+                    .setProductId(it.productId)
+                    .setProductType(it.productType)
                     .build()
-            )
-        }
-
-        val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(queryProducts)
-            .build()
-
-        val productBillingResult = withContext(Dispatchers.IO) {
-            billingClient.queryProductDetails(params)
-        }
-
-        if (productBillingResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            productBillingResult.productDetailsList?.let { productsDetails ->
-                Log.d(BILLING_LOG, "queryAvailablePurchases: Products-> $productsDetails")
-                productDetailsList.clear()
-                productDetailsList.addAll(productsDetails)
-                onGetProducts?.invoke(productDetailsList)
             }
-        } else {
-            Log.d(BILLING_LOG, "queryAvailablePurchases: Failed -> ${productBillingResult.billingResult.debugMessage}")
-        }
 
-    }
+            val params = QueryProductDetailsParams.newBuilder()
+                .setProductList(queryList)
+                .build()
 
-    private fun queryActivePurchases() {
-        val productTypes = listOf(ProductType.IN_APP.type, ProductType.SUBS.type)
+            val result = billingClient.queryProductDetails(params)
 
-        productTypes.forEach {
-            queryPurchases(it)
-        }
-    }
-
-    private fun queryPurchases(purchaseType: String) {
-        val subsParams = QueryPurchasesParams.newBuilder()
-            .setProductType(purchaseType)
-            .build()
-
-        billingClient.queryPurchasesAsync(subsParams) { result, purchases ->
-            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                Log.d(BILLING_LOG, "queryPurchases: Success: $purchaseType")
-
-                if (purchases.isEmpty()) {
-                    Log.d(BILLING_LOG, "queryPurchases: No Products purchased.")
-                    return@queryPurchasesAsync
-                }
-
-                purchases.forEach { purchase ->
-                    handlePurchase(purchase)
-                }
+            if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                _products.value = result.productDetailsList ?: emptyList()
             } else {
-                Log.d(BILLING_LOG, "queryPurchases: Failed -> ${result.debugMessage}")
+                _billingEvents.tryEmit(
+                    BillingEvent.Error(result.billingResult.debugMessage)
+                )
             }
         }
     }
 
-    fun launchPurchase(activity: Activity, productId: String) {
+    /* -------------------- PURCHASE FLOW -------------------- */
 
-        val productDetails = productDetailsList.find { it.productId == productId }
+    fun launchPurchase(activity: Activity, productId: String, offerToken: String? = null) {
+        val details = _products.value.find {
+            it.productId == productId
+        } ?: return
 
-        if (productDetails == null) {
-            Log.d(BILLING_LOG, "launchPurchase: No Product with this id founded.")
-            return
-        }
-
-        productDetails.let { details ->
-
-            val productDetailsParams = listOf(
-                BillingFlowParams.ProductDetailsParams.newBuilder()
-                    .setProductDetails(details)
-                    .apply {
-                        if (details.productType == ProductType.SUBS.type) {
-                            setOfferToken(details.subscriptionOfferDetails?.first()?.offerToken ?: "")
-                        } else {
-                            setOfferToken(details.oneTimePurchaseOfferDetails?.offerToken ?: "")
-                        }
-                    }
-                    .build()
-            )
-
-            val params = BillingFlowParams.newBuilder()
-                .setProductDetailsParamsList(productDetailsParams)
-
-            billingClient.launchBillingFlow(activity, params.build())
-
-        }
-
-    }
-
-    private fun handlePurchase(purchase: Purchase?) {
-        if (purchase == null) {
-            Log.d(BILLING_LOG, "handlePurchase: Purchase is null")
-            return
-        }
-
-        when (purchase.purchaseState) {
-            Purchase.PurchaseState.PURCHASED -> {
-                Log.d(BILLING_LOG, "handlePurchase: Item Purchased.")
-                //AcknowledgePurchase
-                acknowledgePurchase(purchase)
+        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(details)
+            .apply {
+                if (offerToken!= null){
+                    setOfferToken(offerToken)
+                }
             }
-
-            Purchase.PurchaseState.PENDING -> {
-                //handle pending purchase
-                Log.d(BILLING_LOG, "handlePurchase: Pending State.")
-            }
-
-            Purchase.PurchaseState.UNSPECIFIED_STATE -> {
-                //handle pending purchase
-                Log.d(BILLING_LOG, "handlePurchase: Unspecified State.")
-
-            }
-
-            else -> {
-                //handle pending purchase
-                Log.d(BILLING_LOG, "handlePurchase: Unspecified State. else one")
-            }
-        }
-
-    }
-
-    private fun acknowledgePurchase(purchase: Purchase) {
-
-        if (purchase.isAcknowledged) {
-            Log.d(BILLING_LOG, "handlePurchase: Purchase is already acknowledged.")
-            return
-        }
-
-        val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
-            .setPurchaseToken(purchase.purchaseToken)
             .build()
 
-        billingClient.acknowledgePurchase(acknowledgePurchaseParams) { result ->
-            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                Log.d(BILLING_LOG, "handlePurchase: Acknowledge Success")
-                //unlock required features
-                onProductPurchased?.invoke(purchase.products.first())
-            } else {
-                Log.d(BILLING_LOG, "handlePurchase: Acknowledge Failed -> ${result.debugMessage}")
-            }
-        }
+        val params = BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(
+                listOf(productDetailsParams)
+            )
+            .build()
+
+        billingClient.launchBillingFlow(activity, params)
     }
+
+    /* -------------------- PURCHASE HANDLING -------------------- */
 
     override fun onPurchasesUpdated(
         result: BillingResult,
-        purchases: List<Purchase?>?
+        purchases: List<Purchase>?
     ) {
-        when (result.responseCode) {
-            BillingClient.BillingResponseCode.OK -> {
-                purchases?.forEach { handlePurchase(it) }
+        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+            purchases?.forEach { handlePurchase(it) }
+        } else if (result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+            _billingEvents.tryEmit(BillingEvent.Error("User cancelled purchase"))
+        }
+    }
+
+    private fun handlePurchase(purchase: Purchase) {
+        when (purchase.purchaseState) {
+            Purchase.PurchaseState.PURCHASED -> {
+                if (!purchase.isAcknowledged) {
+                    acknowledge(purchase)
+                }
             }
 
-            BillingClient.BillingResponseCode.USER_CANCELED -> {
-                Log.d(BILLING_LOG, "onPurchasesUpdated: User Canceled.")
+            Purchase.PurchaseState.PENDING -> {
+                _billingEvents.tryEmit(
+                    BillingEvent.PurchasePending(
+                        purchase.products.first()
+                    )
+                )
             }
 
-            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
-                Log.d(BILLING_LOG, "onPurchasesUpdated: Item already owned.")
-            }
+            else -> Unit
+        }
+    }
 
-            BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> {
-                Log.d(BILLING_LOG, "onPurchasesUpdated: Item unavailable.")
+    private fun acknowledge(purchase: Purchase) {
+        val params = AcknowledgePurchaseParams.newBuilder()
+            .setPurchaseToken(purchase.purchaseToken)
+            .build()
+
+        billingClient.acknowledgePurchase(params) { result ->
+            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                _billingEvents.tryEmit(
+                    BillingEvent.PurchaseSuccess(
+                        purchase.products.first()
+                    )
+                )
             }
         }
     }
 
-    fun releaseResources(){
-        billingScope.cancel()
-        billingClient.endConnection()
-        onGetProducts = null
-        onProductPurchased = null
+    /* -------------------- RESTORE -------------------- */
+
+    private fun restorePurchases() {
+        val types = listOf(
+            BillingClient.ProductType.INAPP,
+            BillingClient.ProductType.SUBS
+        )
+
+        types.forEach { type ->
+            billingClient.queryPurchasesAsync(
+                QueryPurchasesParams.newBuilder()
+                    .setProductType(type)
+                    .build()
+            ) { result, purchases ->
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    purchases.forEach { handlePurchase(it) }
+                }
+            }
+        }
     }
 
+    /* -------------------- CLEANUP -------------------- */
+
+    fun release() {
+        billingScope.cancel()
+        billingClient.endConnection()
+    }
 }
