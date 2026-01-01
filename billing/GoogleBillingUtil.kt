@@ -54,7 +54,7 @@ object BillingUtil: PurchasesUpdatedListener {
     private val _purchaseEvents: MutableSharedFlow<BillingEvent> = MutableSharedFlow(extraBufferCapacity = 1)
     val purchaseEvents: SharedFlow<BillingEvent> = _purchaseEvents
 
-
+    /************* CONNECTION ***************/
     fun initBillingClient(context: Context){
         billingClient = BillingClient.newBuilder(context)
             .setListener(this)
@@ -97,6 +97,7 @@ object BillingUtil: PurchasesUpdatedListener {
         )
     }
 
+    /************* FETCH PRODUCTS ***************/
     private fun fetchProducts() {
        billingScope.launch {
 
@@ -161,6 +162,7 @@ object BillingUtil: PurchasesUpdatedListener {
         Log.d("327847289340928402342", "queryProducs: completed")
     }
 
+    /************* RESTORE PRODUCTS ***************/
     private fun restorePurchases() {
         val productTypes = listOf(ProductType.IN_APP.type, ProductType.SUBS.type)
 
@@ -192,6 +194,7 @@ object BillingUtil: PurchasesUpdatedListener {
         }
     }
 
+    /************* LAUNCH PURCHASE FLOW ***************/
     fun launchPurchase(activity: Activity, productId: String, offerId: String? = null) {
 
         val productDetails = billingProductDetailsList.find { it.productId == productId }
@@ -234,6 +237,7 @@ object BillingUtil: PurchasesUpdatedListener {
         }
     }
 
+    /************* HANDLE PURCHASE ***************/
     private fun handlePurchase(purchase: Purchase?) {
         if (purchase == null) {
             Log.d(BILLING_LOG, "handlePurchase: Purchase is null")
@@ -311,6 +315,7 @@ object BillingUtil: PurchasesUpdatedListener {
         }
     }
 
+    /************* RELEASE RESOURCES ***************/
     fun releaseResources(){
         billingScope.cancel()
         billingClient.endConnection()
