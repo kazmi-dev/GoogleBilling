@@ -1,5 +1,3 @@
-package com.kazmi.dev.coding.base.billing
-
 import android.content.Context
 import com.android.billingclient.api.BillingClient
 import dagger.Module
@@ -23,5 +21,6 @@ object BillingModule {
             )
         )
     }
+
 
 }
