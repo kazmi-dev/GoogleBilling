@@ -7,12 +7,15 @@ Supports **one-time purchases** (`INAPP`) and **subscriptions** (`SUBS`) with pr
 
 ## 📦 Features
 
+- ✅ Two-way billing package DI & Object
 - ✅ Supports **in-app purchases** and **subscriptions**
 - ✅ Handles **acknowledgment**, **pending**, and **already purchased** states
 - ✅ Uses `BillingClient` with proper lifecycle handling
 - ✅ Coroutine-powered product querying
-- ✅ Plug-and-play **callback interface** (`BillingPurchaseCallback`)
+- ✅ Plug-and-play **State Flows** (`BillingPurchaseCallback`)
 - ✅ Built with **Dagger Hilt** for dependency injection
+- ✅ Support MVVM Architecture(viewModel & repositories)
+- ✅ Also support billing through **Object**
 
 ---
 
