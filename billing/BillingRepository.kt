@@ -18,6 +18,7 @@ interface BillingRepository {
     fun restorePurchases()
     fun launchPurchase(activity: Activity, productId: String, offerId: String? = null)
     fun handlePurchase(purchase: Purchase, isRestoredPurchase: Boolean = false)
-
+    fun clearResource()
 
 }
+
