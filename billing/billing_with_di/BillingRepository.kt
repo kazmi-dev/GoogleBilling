@@ -1,5 +1,3 @@
-package com.kazmi.dev.coding.base.billing
-
 import android.app.Activity
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -16,5 +14,6 @@ interface BillingRepository {
     fun restorePurchases()
     fun launchPurchase(activity: Activity, productId: String, offerId: String? = null)
     fun handlePurchase(purchase: Purchase, isRestoredPurchase: Boolean = false)
+
 
 }
