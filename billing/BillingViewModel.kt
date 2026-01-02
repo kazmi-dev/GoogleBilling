@@ -30,6 +30,10 @@ class BillingViewModel@Inject constructor(
         billingRepository.launchPurchase(activity, productId, offerId)
     }
 
-
+     override fun onCleared() {
+        super.onCleared()
+        billingRepository.clearResource()
+    }
 
 }
+
