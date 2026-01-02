@@ -7,7 +7,7 @@ Supports **one-time purchases** (`INAPP`) and **subscriptions** (`SUBS`) with pr
 
 ## 📦 Features
 
-- ✅ Two-way billing package DI & Object
+- ✅ Two-way billing package -> DI & Object
 - ✅ Supports **in-app purchases** and **subscriptions**
 - ✅ Handles **acknowledgment**, **pending**, and **already purchased** states
 - ✅ Uses `BillingClient` with proper lifecycle handling
