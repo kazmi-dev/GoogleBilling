@@ -298,4 +298,11 @@ object BillingUtil: BillingRepository, PurchasesUpdatedListener {
         }
     }
 
+
+    /** Clear Resource */
+    override fun clearResource() {
+        billingScope.cancel()
+        billingClient.endConnection()
+    }
+
 }
