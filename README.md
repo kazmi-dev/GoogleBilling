@@ -24,3 +24,12 @@ Supports **one-time purchases** (`INAPP`) and **subscriptions** (`SUBS`) with pr
 - ✅ Billing Library
 - ✅ Dependency Injection (Dagger/Hilt)
 - ✅ NO Dependency Injection (Dagger/Hilt) with Util as an Object
+- ✅ Copy Paste package and use
+
+## With Di
+
+Initialize viewModel to start billing connection automatically or inject billing repositoy in your Application class to start billing connection automatically and fetch, restore products automatically.
+
+## With Object
+
+Initialize Billing util with `initBillingClient()` fuction to start billing connection, fetch and restore product purchase states.
