@@ -15,7 +15,7 @@ Supports **one-time purchases** (`INAPP`) and **subscriptions** (`SUBS`) with pr
 - ✅ Plug-and-play **State Flows** (`BillingPurchaseCallback`)
 - ✅ Built with **Dagger Hilt** for dependency injection
 - ✅ Support MVVM Architecture (viewModel & repository)
-- ✅ Also support billing through **Object**
+- ✅ Support billing through **Object**
 
 ---
 
