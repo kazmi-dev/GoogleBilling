@@ -302,5 +302,10 @@ class BillingImpl @Inject constructor(
     }
 
 
+    /** Clear Resource */
+    override fun clearResource() {
+        billingScope.cancel()
+        billingClient.endConnection()
+    }
 
 }
