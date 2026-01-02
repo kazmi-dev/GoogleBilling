@@ -32,4 +32,4 @@ Initialize viewModel to start billing connection automatically or inject billing
 
 ## With Object
 
-Initialize Billing util with `initBillingClient()` fuction to start billing connection, fetch and restore product purchase states.
+Initialize Billing util with `initBillingClient()` fuction in your application class to start billing connection, fetch and restore product purchase states.
