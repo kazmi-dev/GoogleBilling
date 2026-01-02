@@ -12,7 +12,7 @@ Supports **one-time purchases** (`INAPP`) and **subscriptions** (`SUBS`) with pr
 - ✅ Handles **acknowledgment**, **pending**, and **already purchased** states
 - ✅ Uses `BillingClient` with proper lifecycle handling
 - ✅ Coroutine-powered product querying
-- ✅ Plug-and-play **State Flows** (`BillingPurchaseCallback`)
+- ✅ Plug-and-play **State Flows** (`products, billingEvents`)
 - ✅ Built with **Dagger Hilt** for dependency injection
 - ✅ Support MVVM Architecture (viewModel & repository)
 - ✅ Support billing through **Object**
