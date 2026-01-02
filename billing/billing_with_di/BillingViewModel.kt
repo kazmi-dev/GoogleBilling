@@ -1,5 +1,3 @@
-package com.kazmi.dev.coding.base.billing
-
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +16,7 @@ class BillingViewModel@Inject constructor(
     fun launchBillingFlow(activity: Activity, productId: String, offerId: String? = null) {
         billingRepository.launchPurchase(activity, productId, offerId)
     }
+
 
 
 }
