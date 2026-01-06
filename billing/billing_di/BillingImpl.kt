@@ -44,8 +44,7 @@ class BillingImpl @Inject constructor(
     private val billingScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Products Management */
-    @Volatile
-    private var billingProductsDetailList: List<ProductDetails> = emptyList()
+    private var billingProductsDetailList: MutableList<ProductDetails> = emptyList()
     private val _products: MutableStateFlow<List<ProductDetails>> =
         MutableStateFlow<List<ProductDetails>>(emptyList())
     override val products: StateFlow<List<ProductDetails>>
@@ -110,6 +109,7 @@ class BillingImpl @Inject constructor(
 
             val productList = inAppQueryJob.await() + subsQueryJob.await()
             Log.d(TAG, "fetchProducts: job completed: productList -> $productList")
+            billingProductsDetailList.addAll(productList)
             _products.value = productList
         }
     }
@@ -135,7 +135,6 @@ class BillingImpl @Inject constructor(
 
         return if (productBillingResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             Log.d(TAG, "queryProducts: Success")
-            billingProductsDetailList = productBillingResult.productDetailsList?: emptyList()
             productBillingResult.productDetailsList ?: emptyList()
         } else {
             val debugMessage = productBillingResult.billingResult.debugMessage
@@ -309,3 +308,4 @@ class BillingImpl @Inject constructor(
     }
 
 }
+
