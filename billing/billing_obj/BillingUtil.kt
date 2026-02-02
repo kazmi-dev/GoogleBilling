@@ -289,7 +289,7 @@ object BillingUtil: BillingRepository, PurchasesUpdatedListener {
                 val event = if (isRestoredPurchase)
                     BillingEvent.PurchaseRestore(purchase.products.first())
                 else
-                    BillingEvent.PurchasePending(purchase.products.first())
+                    BillingEvent.PurchaseSuccess(purchase.products.first())
                 _billingEvents.tryEmit(event)
             } else {
                 Log.d(TAG, "handlePurchase: Acknowledge Failed -> ${billingResult.debugMessage}")
@@ -306,3 +306,4 @@ object BillingUtil: BillingRepository, PurchasesUpdatedListener {
     }
 
 }
+
